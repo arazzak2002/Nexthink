@@ -1,0 +1,45 @@
+# Define the groups you want to add to the Administrators group
+$groupNames = @("Group1", "Group2", "Group3") # Add your group names here
+
+# Function to log messages
+function Write-Log {
+    param (
+        [string]$message
+    )
+    Write-Output $message
+}
+
+# Process each group
+foreach ($groupName in $groupNames) {
+    # Add group if it doesn't exist
+    try {
+        $groupExists = Get-LocalGroup -Name $groupName -ErrorAction SilentlyContinue
+        if (-not $groupExists) {
+            New-LocalGroup -Name $groupName
+            Write-Log "Group '$groupName' created."
+        } else {
+            Write-Log "Group '$groupName' already exists."
+        }
+    } catch {
+        Write-Log "Error creating group '$groupName': $_"
+        exit 1
+    }
+
+    # Add the group to the Administrators group
+    try {
+        $adminGroupExists = Get-LocalGroup -Name "Administrators" -ErrorAction SilentlyContinue
+        if ($adminGroupExists) {
+            Add-LocalGroupMember -Group "Administrators" -Member $groupName -ErrorAction Stop
+            Write-Log "Added group '$groupName' to the Administrators group."
+        } else {
+            Write-Log "Administrators group does not exist."
+            exit 3
+        }
+    } catch {
+        Write-Log "Error adding group '$groupName' to the Administrators group: $_"
+        exit 2
+    }
+}
+
+# Successful completion
+exit 0
