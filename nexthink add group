@@ -1,45 +1,33 @@
-# Define the groups you want to add to the Administrators group
-$groupNames = @("Group1", "Group2", "Group3") # Add your group names here
+# PowerShell Script to Reset WMI
 
-# Function to log messages
-function Write-Log {
-    param (
-        [string]$message
-    )
-    Write-Output $message
+# Stop the WMI Service
+Try {
+    Stop-Service -Name Winmgmt -Force -ErrorAction Stop
+    Write-Host "WMI Service stopped successfully."
+} Catch {
+    Write-Host "Error stopping WMI Service: $_"
+    Exit 1
 }
 
-# Process each group
-foreach ($groupName in $groupNames) {
-    # Add group if it doesn't exist
-    try {
-        $groupExists = Get-LocalGroup -Name $groupName -ErrorAction SilentlyContinue
-        if (-not $groupExists) {
-            New-LocalGroup -Name $groupName
-            Write-Log "Group '$groupName' created."
-        } else {
-            Write-Log "Group '$groupName' already exists."
-        }
-    } catch {
-        Write-Log "Error creating group '$groupName': $_"
-        exit 1
-    }
-
-    # Add the group to the Administrators group
-    try {
-        $adminGroupExists = Get-LocalGroup -Name "Administrators" -ErrorAction SilentlyContinue
-        if ($adminGroupExists) {
-            Add-LocalGroupMember -Group "Administrators" -Member $groupName -ErrorAction Stop
-            Write-Log "Added group '$groupName' to the Administrators group."
-        } else {
-            Write-Log "Administrators group does not exist."
-            exit 3
-        }
-    } catch {
-        Write-Log "Error adding group '$groupName' to the Administrators group: $_"
-        exit 2
-    }
+# Rename the WMI Repository
+Try {
+    $repoPath = "C:\Windows\System32\wbem\Repository"
+    $newName = "Repository.old"
+    Rename-Item -Path $repoPath -NewName $newName -ErrorAction Stop
+    Write-Host "WMI Repository renamed successfully."
+} Catch {
+    Write-Host "Error renaming WMI Repository: $_"
+    Start-Service -Name Winmgmt
+    Exit 1
 }
 
-# Successful completion
-exit 0
+# Restart the WMI Service
+Try {
+    Start-Service -Name Winmgmt
+    Write-Host "WMI Service restarted successfully."
+} Catch {
+    Write-Host "Error restarting WMI Service: $_"
+    Exit 1
+}
+
+Write-Host "WMI reset completed."
